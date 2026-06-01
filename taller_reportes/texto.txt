@@ -1,0 +1,429 @@
+<?php 
+include("conexion.php"); 
+date_default_timezone_set('America/Mexico_City');
+
+// --- LÓGICA DE FILTRADO PARA LA TABLA EN PANTALLA ---
+$fecha_inicio = isset($_GET['fecha_inicio']) ? $_GET['fecha_inicio'] : date('Y-m-d', strtotime('-7 days'));
+$fecha_fin = isset($_GET['fecha_fin']) ? $_GET['fecha_fin'] : date('Y-m-d');
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Control - Taller FIME</title>
+    <link rel="stylesheet" href="estilos.css?v=<?php echo time(); ?>">
+    <style>
+        :root { --primary: #28a745; --dark: #333; --blue: #007bff; --red: #dc3545; --yellow: #ffc107; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; background: #f4f4f4; }
+        
+        /* Sidebar */
+        .sidebar { width: 250px; height: 100vh; background: var(--dark); color: white; position: fixed; padding: 20px; box-sizing: border-box; z-index: 100; }
+        .sidebar h2 { font-size: 1.5rem; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 20px; }
+        .sidebar a { display: block; color: #ccc; padding: 12px; text-decoration: none; cursor: pointer; border-radius: 4px; margin-bottom: 5px; transition: 0.3s; }
+        .sidebar a:hover { background: #444; color: white; }
+        
+        /* Contenido Principal */
+        .main-content { margin-left: 250px; padding: 30px; width: calc(100% - 250px); min-height: 100vh; }
+        .section { display: none; }
+        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        
+        /* Buscadores y Filtros */
+        .search-container { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
+        .search-input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .filter-group { display: flex; gap: 10px; background: #eee; padding: 15px; border-radius: 8px; margin-bottom: 20px; align-items: flex-end; }
+        
+        /* Tablas y Botones */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; font-size: 0.9rem; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; position: sticky; top: 0; }
+        .btn-plus { background: var(--blue); color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1.2rem; }
+        .btn-modificar { background: var(--yellow); color: black; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; margin-right: 5px; }
+        .btn-eliminar { background: var(--red); color: white; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; }
+        .btn-danger-outline { background: transparent; color: var(--red); border: 1px solid var(--red); padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; transition: 0.3s; }
+        .btn-danger-outline:hover { background: var(--red); color: white; }
+        
+        /* Formularios */
+        .form-container { display: none; background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--blue); }
+        input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .btn-guardar { background: var(--primary); color: white; border: none; padding: 12px 20px; cursor: pointer; border-radius: 4px; font-weight: bold; width: 100%; }
+
+        /* Vales y Prácticas */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+        .card-p { background: white; border-top: 5px solid var(--primary); padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative; }
+        .auth-box { background: #fff3cd; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; margin-top: 15px; }
+        .mini-list { font-size: 0.85rem; color: #555; background: #f9f9f9; padding: 5px; border-radius: 4px; }
+        .delete-corner { position: absolute; top: 15px; right: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>Taller FIME</h2>
+    <a onclick="show('n_vale')">📝 Generar Vale</a>
+    <a onclick="show('curso')">⏱️ Prácticas Activas</a>
+    <a onclick="show('semanal')">📅 Reporte Semanal</a>
+    <hr style="border-top:1px solid #444; margin:15px 0;">
+    <a onclick="show('est')">👥 Estudiantes</a>
+    <a onclick="show('prof')">👨‍🏫 Profesores</a>
+    <a onclick="show('mat')">🔧 Inventario</a>
+</div>
+
+<div class="main-content">
+
+    <div id="n_vale" class="section">
+        <h1>Nuevo Vale de Material</h1>
+        <div class="card">
+            <form action="guardar_reporte.php" method="POST">
+                <label>Estudiante:</label>
+                <select name="estudiante_id" required>
+                    <option value="">-- Buscar Estudiante --</option>
+                    <?php
+                    $e_q = mysqli_query($conexion, "SELECT id, nombre, numero_cuenta FROM estudiantes ORDER BY nombre ASC");
+                    while($e = mysqli_fetch_assoc($e_q)) echo "<option value='{$e['id']}'>{$e['numero_cuenta']} - {$e['nombre']}</option>";
+                    ?>
+                </select>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" name="mesa" placeholder="Mesa / Lugar (Opcional)">
+                    <input type="text" name="maquina" placeholder="Máquina (Opcional)">
+                </div>
+                <input type="text" name="practica" placeholder="Nombre de la Práctica (Opcional)">
+                
+                <div style="background:#f8f9fa; padding:15px; border-radius:8px; margin:10px 0; border:1px solid #ddd;">
+                    <strong>Materiales / Herramientas:</strong>
+                    <div style="display:flex; gap:10px; margin-top:5px;">
+                        <select id="s-mat" style="flex-grow:1;">
+                            <option value="">-- Seleccionar Herramienta --</option>
+                            <?php
+                            $m_q = mysqli_query($conexion, "SELECT id, nombre FROM materiales ORDER BY nombre ASC");
+                            while($m = mysqli_fetch_assoc($m_q)) echo "<option value='{$m['id']}' data-n='{$m['nombre']}'>{$m['nombre']}</option>";
+                            ?>
+                        </select>
+                        <input type="number" id="c-mat" value="1" min="1" style="width:70px;">
+                        <button type="button" onclick="addM()" class="btn-plus" style="padding:5px 12px;">+</button>
+                    </div>
+                    <table id="t-m" style="display:none; width:100%; margin-top:10px;">
+                        <thead><tr style="font-size:0.8rem;"><th>Material</th><th>Cant.</th><th>X</th></tr></thead>
+                        <tbody id="l-m"></tbody>
+                    </table>
+                </div>
+
+                <div class="auth-box">
+                    <label>Profesor que entrega material:</label>
+                    <select name="profesor_salida_id" required>
+                        <option value="">-- Seleccionar Profesor --</option>
+                        <?php
+                        $p_q = mysqli_query($conexion, "SELECT id, nombre FROM profesores ORDER BY nombre ASC");
+                        while($p = mysqli_fetch_assoc($p_q)) echo "<option value='{$p['id']}'>{$p['nombre']}</option>";
+                        ?>
+                    </select>
+                    <input type="password" name="pass_profesor" placeholder="Contraseña Profesor" required>
+                </div>
+                <button type="submit" class="btn-guardar" style="margin-top:15px; background:var(--primary);">REGISTRAR SALIDA</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="curso" class="section">
+        <h1>Prácticas en Curso</h1>
+        <div class="grid">
+            <?php
+            $act = mysqli_query($conexion, "SELECT r.*, e.nombre as alumno, e.numero_cuenta, e.grado, e.grupo 
+                                           FROM reportes r 
+                                           JOIN estudiantes e ON r.estudiante_id = e.id 
+                                           WHERE r.hora_termino IS NULL 
+                                           ORDER BY r.hora_inicio DESC");
+            if(mysqli_num_rows($act) == 0) echo "<p>No hay prácticas activas en este momento.</p>";
+            while($r = mysqli_fetch_assoc($act)){
+            ?>
+            <div class="card-p">
+                <div class="delete-corner">
+                    <a href="eliminar_practica.php?id=<?php echo $r['id']; ?>" 
+                       class="btn-danger-outline" 
+                       onclick="return confirm('¿Eliminar esta práctica activa? Esto borrará el registro por completo si fue un error.')">
+                       Eliminar
+                    </a>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; width: 80%;">
+                    <span style="font-size:0.8rem; color:var(--blue); font-weight:bold;">Mesa: <?php echo $r['mesa'] ?: 'N/A'; ?></span>
+                    <span style="font-size:0.8rem; color:var(--blue); font-weight:bold;">Máq: <?php echo $r['maquina'] ?: 'N/A'; ?></span>
+                </div>
+                <h3><?php echo $r['practica'] ?: 'Sin nombre de práctica'; ?></h3>
+                <p><strong>Alumno:</strong> <?php echo $r['alumno']; ?> <br>
+                   <strong>Cuenta:</strong> <?php echo $r['numero_cuenta']; ?> (<?php echo $r['grado'].$r['grupo']; ?>)</p>
+                <p><strong>Inicio:</strong> <?php echo date("H:i", strtotime($r['hora_inicio'])); ?></p>
+                
+                <div class="mini-list">
+                    <strong>Material:</strong><br>
+                    <?php 
+                    $rid = $r['id'];
+                    $m_list = mysqli_query($conexion, "SELECT rm.cantidad, m.nombre FROM reporte_materiales rm JOIN materiales m ON rm.material_id = m.id WHERE rm.reporte_id = $rid");
+                    if(mysqli_num_rows($m_list) == 0) echo "Sin material registrado.";
+                    while($ml = mysqli_fetch_assoc($m_list)) echo "- {$ml['cantidad']}x {$ml['nombre']}<br>";
+                    ?>
+                </div>
+
+                <form action="finalizar_practica.php" method="POST" class="auth-box">
+                    <input type="hidden" name="reporte_id" value="<?php echo $r['id']; ?>">
+                    <textarea name="observaciones" placeholder="Observaciones (Opcional)" rows="2" style="font-size:0.8rem;"></textarea>
+                    <select name="profesor_recibe_id" required>
+                        <option value="">-- ¿Quién recibe? --</option>
+                        <?php mysqli_data_seek($p_q, 0); while($p = mysqli_fetch_assoc($p_q)) echo "<option value='{$p['id']}'>{$p['nombre']}</option>"; ?>
+                    </select>
+                    <input type="password" name="pass_profesor" placeholder="Contraseña para recibir" required>
+                    <button type="submit" class="btn-eliminar" style="width:100%; margin-top:10px; border:none; cursor:pointer; background:var(--primary);">FINALIZAR Y RECIBIR</button>
+                </form>
+            </div>
+            <?php } ?>
+        </div>
+    </div>
+
+    <div id="semanal" class="section">
+        <h1>Historial de Prácticas</h1>
+        <div class="card">
+            <div class="filter-group">
+                <form action="dashboard.php" method="GET" style="display:flex; gap:10px; flex:2; align-items: flex-end;">
+                    <input type="hidden" name="tab" value="semanal">
+                    <div style="flex:1;">
+                        <label>Desde:</label>
+                        <input type="date" name="fecha_inicio" value="<?php echo $fecha_inicio; ?>">
+                    </div>
+                    <div style="flex:1;">
+                        <label>Hasta:</label>
+                        <input type="date" name="fecha_fin" value="<?php echo $fecha_fin; ?>">
+                    </div>
+                    <button type="submit" class="btn-guardar" style="width:auto; padding: 10px 20px; background:var(--blue);">🔍 Filtrar en Pantalla</button>
+                </form>
+                <form action="generar_excel.php" method="POST" style="flex:1;">
+                    <input type="hidden" name="f_inicio" value="<?php echo $fecha_inicio; ?>">
+                    <input type="hidden" name="f_fin" value="<?php echo $fecha_fin; ?>">
+                    <button type="submit" class="btn-guardar" style="background:var(--dark);">📥 Exportar a Excel</button>
+                </form>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>No. Cuenta</th>
+                            <th>Alumno (G/G)</th>
+                            <th>Mesa/Máq</th>
+                            <th>Práctica</th>
+                            <th>Materiales</th>
+                            <th>Horario</th>
+                            <th>Profesores (S/E)</th>
+                            <th>Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        $query_hist = "SELECT r.*, e.nombre as alumno, e.numero_cuenta, e.grado, e.grupo, p1.nombre as p_sal, p2.nombre as p_rec 
+                                       FROM reportes r 
+                                       JOIN estudiantes e ON r.estudiante_id = e.id 
+                                       JOIN profesores p1 ON r.profesor_salida_id = p1.id 
+                                       LEFT JOIN profesores p2 ON r.profesor_recibe_id = p2.id 
+                                       WHERE r.hora_termino IS NOT NULL 
+                                       AND DATE(r.hora_inicio) BETWEEN '$fecha_inicio' AND '$fecha_fin'
+                                       ORDER BY r.hora_inicio DESC";
+                        $hist = mysqli_query($conexion, $query_hist);
+                        
+                        while($h = mysqli_fetch_assoc($hist)) {
+                            $m_str = "";
+                            $rid_h = $h['id'];
+                            $m_h = mysqli_query($conexion, "SELECT rm.cantidad, m.nombre FROM reporte_materiales rm JOIN materiales m ON rm.material_id = m.id WHERE rm.reporte_id = $rid_h");
+                            while($mh = mysqli_fetch_assoc($m_h)) { $m_str .= "{$mh['cantidad']}x {$mh['nombre']}<br>"; }
+                            
+                            echo "<tr>
+                                <td>".date("d/m/y", strtotime($h['hora_inicio']))."</td>
+                                <td><code>{$h['numero_cuenta']}</code></td>
+                                <td><b>{$h['alumno']}</b><br><small>{$h['grado']}{$h['grupo']}</small></td>
+                                <td>M:".($h['mesa'] ?: '-')."<br>Maq:".($h['maquina'] ?: '-')."</td>
+                                <td>".($h['practica'] ?: '---')."</td>
+                                <td style='font-size:0.75rem;'>".($m_str ?: 'Ninguno')."</td>
+                                <td>In: ".date("H:i", strtotime($h['hora_inicio']))."<br>Fin: ".date("H:i", strtotime($h['hora_termino']))."</td>
+                                <td>Sal: {$h['p_sal']}<br>Ent: ".($h['p_rec'] ?: '---')."</td>
+                                <td style='font-size:0.75rem; color:#666;'>".($h['observaciones'] ?: 'Sin observaciones')."</td>
+                            </tr>";
+                        }
+                        ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="est" class="section">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h1>Estudiantes</h1>
+            <button class="btn-plus" onclick="toggleForm('reg-est')">+</button>
+        </div>
+        <div id="reg-est" class="form-container">
+            <h3>Registrar Nuevo Estudiante</h3>
+            <form action="guardar_estudiante.php" method="POST">
+                <input type="text" name="nombre" placeholder="Nombre Completo" required>
+                <input type="text" name="cuenta" placeholder="Número de Cuenta" required>
+                <input type="text" name="grado" placeholder="Grado">
+                <input type="text" name="grupo" placeholder="Grupo">
+                <button type="submit" class="btn-guardar">GUARDAR EN SISTEMA</button>
+            </form>
+        </div>
+        <div class="card">
+            <div class="search-container">
+                <input type="text" id="bus-est" class="search-input" placeholder="Buscar por Nombre o No. Cuenta..." onkeyup="filterTable('bus-est', 'tab-est')">
+            </div>
+            <table id="tab-est">
+                <thead><tr><th>Cuenta</th><th>Nombre</th><th>Acciones</th></tr></thead>
+                <tbody>
+                    <?php mysqli_data_seek($e_q, 0); while($e = mysqli_fetch_assoc($e_q)){ ?>
+                    <tr>
+                        <td><?php echo $e['numero_cuenta']; ?></td>
+                        <td><?php echo $e['nombre']; ?></td>
+                        <td>
+                            <a href="editar_estudiante.php?cuenta_buscar=<?php echo $e['numero_cuenta']; ?>" class="btn-modificar">Modificar</a>
+                            <a href="eliminar.php?id=<?php echo $e['id']; ?>&tipo=estudiante" class="btn-eliminar" onclick="return confirm('¿Eliminar?')">Eliminar</a>
+                        </td>
+                    </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="prof" class="section">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h1>Profesores</h1>
+            <button class="btn-plus" onclick="toggleForm('reg-prof')">+</button>
+        </div>
+        <div id="reg-prof" class="form-container">
+            <h3>Registrar Nuevo Profesor</h3>
+            <form action="guardar_profesor.php" method="POST">
+                <input type="text" name="nombre_profe" placeholder="Nombre completo" required>
+                <input type="password" name="pass_profe" placeholder="Asignar Contraseña" required>
+                <button type="submit" class="btn-guardar">REGISTRAR PROFESOR</button>
+            </form>
+        </div>
+        <div class="card">
+            <div class="search-container">
+                <input type="text" id="bus-prof" class="search-input" placeholder="Buscar profesor..." onkeyup="filterTable('bus-prof', 'tab-prof')">
+            </div>
+            <table id="tab-prof">
+                <thead><tr><th>Nombre</th><th>Acciones</th></tr></thead>
+                <tbody>
+                    <?php mysqli_data_seek($p_q, 0); while($p = mysqli_fetch_assoc($p_q)){ ?>
+                    <tr>
+                        <td><?php echo $p['nombre']; ?></td>
+                        <td>
+                            <a href="editar_profesor.php?id_buscar=<?php echo $p['id']; ?>" class="btn-modificar">Modificar</a>
+                            <a href="eliminar.php?id=<?php echo $p['id']; ?>&tipo=profesor" class="btn-eliminar" onclick="return confirm('¿Eliminar?')">Eliminar</a>
+                        </td>
+                    </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="mat" class="section">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h1>Inventario</h1>
+            <button class="btn-plus" onclick="toggleForm('reg-mat')">+</button>
+        </div>
+        <div id="reg-mat" class="form-container">
+            <h3>Agregar Material / Herramienta</h3>
+            <form action="guardar_material.php" method="POST">
+                <input type="text" name="nombre_material" placeholder="Nombre de la herramienta" required>
+                <button type="submit" class="btn-guardar">AGREGAR AL INVENTARIO</button>
+            </form>
+        </div>
+        <div class="card">
+            <div class="search-container">
+                <input type="text" id="bus-mat" class="search-input" placeholder="Buscar herramienta..." onkeyup="filterTable('bus-mat', 'tab-mat')">
+            </div>
+            <table id="tab-mat">
+                <thead><tr><th>Nombre</th><th>Acciones</th></tr></thead>
+                <tbody>
+                    <?php mysqli_data_seek($m_q, 0); while($m = mysqli_fetch_assoc($m_q)){ ?>
+                    <tr>
+                        <td><?php echo $m['nombre']; ?></td>
+                        <td>
+                            <a href="editar_material.php?id_buscar=<?php echo $m['id']; ?>" class="btn-modificar">Modificar</a>
+                            <a href="eliminar.php?id=<?php echo $m['id']; ?>&tipo=material" class="btn-eliminar" onclick="return confirm('¿Eliminar?')">Eliminar</a>
+                        </td>
+                    </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function show(id) {
+        document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+        document.getElementById(id).style.display = 'block';
+        localStorage.setItem('tab_activa', id);
+    }
+
+    function toggleForm(id) {
+        const f = document.getElementById(id);
+        f.style.display = (f.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function filterTable(inputId, tableId) {
+        const filter = document.getElementById(inputId).value.toLowerCase();
+        const tr = document.getElementById(tableId).getElementsByTagName("tr");
+        for (let i = 1; i < tr.length; i++) {
+            let visible = false;
+            const td = tr[i].getElementsByTagName("td");
+            for (let j = 0; j < td.length - 1; j++) {
+                if (td[j] && td[j].innerText.toLowerCase().indexOf(filter) > -1) { visible = true; }
+            }
+            tr[i].style.display = visible ? "" : "none";
+        }
+    }
+
+    // Lógica mejorada: Evita duplicados en la lista de materiales
+    function addM() {
+        const s = document.getElementById('s-mat');
+        const c = document.getElementById('c-mat');
+        
+        if(!s.value) return;
+
+        // Comprobación de duplicados
+        const hiddenInputs = document.querySelectorAll('#l-m input[name="m_ids[]"]');
+        let existe = false;
+        hiddenInputs.forEach(input => {
+            if(input.value === s.value) {
+                existe = true;
+            }
+        });
+
+        if(existe) {
+            alert("Este material ya ha sido agregado a la lista del vale actual.");
+            return;
+        }
+
+        const html = `<tr>
+            <td>${s.options[s.selectedIndex].dataset.n}<input type="hidden" name="m_ids[]" value="${s.value}"></td>
+            <td>${c.value}<input type="hidden" name="m_cants[]" value="${c.value}"></td>
+            <td><button type="button" onclick="this.parentElement.parentElement.remove()" style="color:red; border:none; background:none; cursor:pointer; font-weight:bold;">X</button></td>
+        </tr>`;
+        
+        document.getElementById('l-m').insertAdjacentHTML('beforeend', html);
+        document.getElementById('t-m').style.display = 'table';
+        
+        // Limpiar selección
+        s.value = ""; 
+        c.value = 1;
+    }
+
+    window.onload = () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tab = urlParams.get('tab') || localStorage.getItem('tab_activa') || 'n_vale';
+        show(tab);
+    }
+</script>
+</body>
+</html>
