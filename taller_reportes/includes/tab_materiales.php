@@ -11,6 +11,10 @@
 </div>
 
 <div class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:10px; background:#f8f9fa; border-bottom: 1px solid #eee;">
+        <input type="text" id="bus-mat" onkeyup="filterTable('bus-mat', 'tab-m')" placeholder="Buscar material o herramienta..." style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+    </div>
+
     <table id="tab-m" class="tabla-estilo">
         <thead>
             <tr>
@@ -23,7 +27,7 @@
             $res = mysqli_query($conexion, "SELECT * FROM materiales ORDER BY nombre ASC");
             while($m = mysqli_fetch_assoc($res)): ?>
             <tr>
-                <td><b><?php echo $m['nombre']; ?></b></td>
+                <td><b><?php echo htmlspecialchars($m['nombre']); ?></b></td>
                 <td style="text-align:right;">
                     <button class="btn-orange" onclick="toggleElement('edit-mat-<?php echo $m['id']; ?>')">Modificar</button>
                     <a href="/taller_reportes/eliminar.php?id=<?php echo $m['id']; ?>&tipo=material" class="btn-red" onclick="return confirm('¿Borrar?')">Eliminar</a>
@@ -41,3 +45,35 @@
         </tbody>
     </table>
 </div>
+
+<script>
+// Función para ocultar/mostrar formularios (la que ya usas)
+function toggleElement(id) {
+    var el = document.getElementById(id);
+    el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none';
+}
+
+// AÑADIDO: Función para filtrar la tabla de materiales
+function filterTable(inputId, tableId) {
+    var input, filter, table, tr, td, i, txtValue;
+    input = document.getElementById(inputId);
+    filter = input.value.toUpperCase();
+    table = document.getElementById(tableId);
+    tr = table.getElementsByTagName("tr");
+
+    for (i = 1; i < tr.length; i++) {
+        td = tr[i].getElementsByTagName("td")[0]; // Busca en la primera columna (Nombre)
+        if (td) {
+            txtValue = td.textContent || td.innerText;
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                tr[i].style.display = "";
+            } else {
+                // Verificamos si no es una fila de edición antes de ocultar
+                if(!tr[i].classList.contains('form-edit')) {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+}
+</script>

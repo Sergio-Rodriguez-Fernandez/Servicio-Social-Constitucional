@@ -1,8 +1,7 @@
 <?php 
-// tab_en_curso.php - Versión con Buscador y Autorización Rápida
+// tab_en_curso.php - Corregido para evitar bloqueo cuando está vacío
 ?>
 <style>
-    /* Estilos para las nuevas funciones */
     .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
     .search-box input { padding: 10px 15px; border-radius: 20px; border: 1px solid #ddd; width: 300px; outline: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     
@@ -10,9 +9,8 @@
     .auth-off { background: #28a745; color: white; }
     .auth-on { background: #dc3545; color: white; }
 
-    /* Modal de autorización */
     .modal-auth { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
-    .modal-auth-content { background: white; padding: 25px; border-radius: 10px; width: 320px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .modal-auth-content { background: white; padding: 25px; border-radius: 10px; width: 320px; text-align: center; }
     .modal-auth-content select, .modal-auth-content input { width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
 
     .grid-practicas { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; }
@@ -33,24 +31,24 @@
 
 <div class="grid-practicas" id="contenedor-tarjetas">
     <?php 
-    // Consulta original
     $sql_c = "SELECT r.*, e.nombre as alumno, e.numero_cuenta, e.grado, e.grupo 
               FROM reportes r 
               JOIN estudiantes e ON r.estudiante_id = e.id 
               WHERE r.hora_termino IS NULL ORDER BY r.hora_inicio DESC";
     $res_c = mysqli_query($conexion, $sql_c);
     
-    if(mysqli_num_rows($res_c) == 0) {
-        echo "<div class='card full-width'><p style='text-align:center; padding:20px;'>No hay préstamos activos en este momento.</p></div>";
-    }
-
-    while($row = mysqli_fetch_assoc($res_c)): 
-        $r_id = $row['id'];
-        $txt_practica = !empty($row['practica']) ? $row['practica'] : 'Sin especificar';
-        $txt_profesor = !empty($row['nombre_profesor_opcional']) ? $row['nombre_profesor_opcional'] : 'Sin especificar';
-        
-        // Cadena para búsqueda
-        $search_data = strtolower($row['alumno'] . " " . $row['numero_cuenta']);
+    // Si no hay filas, mostramos el mensaje pero NO cerramos el proceso PHP
+    if(mysqli_num_rows($res_c) == 0): ?>
+        <div class='card full-width' style="grid-column: 1 / -1;">
+            <p style='text-align:center; padding:40px; color: #666;'>No hay préstamos activos en este momento.</p>
+        </div>
+    <?php 
+    else:
+        while($row = mysqli_fetch_assoc($res_c)): 
+            $r_id = $row['id'];
+            $txt_practica = !empty($row['practica']) ? $row['practica'] : 'Sin especificar';
+            $txt_profesor = !empty($row['nombre_profesor_opcional']) ? $row['nombre_profesor_opcional'] : 'Sin especificar';
+            $search_data = strtolower($row['alumno'] . " " . $row['numero_cuenta']);
     ?>
     <div class="card card-item" data-search="<?php echo $search_data; ?>" style="border-left: 5px solid #ffc107; margin-bottom: 20px;">
         <form action="finalizar_practica.php" method="POST" class="form-finalizar">
@@ -89,7 +87,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 0.85rem;">
                         <span><?php echo $m['nombre']; ?> (Llevó: <?php echo $m['cantidad']; ?>)</span>
                         <input type="number" name="devueltos[<?php echo $m['id']; ?>]" 
-                               value="<?php echo $m['cantidad']; ?>" 
+                               value="0" 
                                min="0" max="<?php echo $m['cantidad']; ?>" 
                                style="width: 50px; padding: 2px; text-align: center;">
                     </div>
@@ -104,7 +102,7 @@
                 <select name="responsable_recibe_id" class="select-resp" required style="width: 100%; padding: 8px; margin-bottom: 5px; font-size: 0.85rem;">
                     <option value="">-- Selecciona quién recibe --</option>
                     <?php 
-                    $res_resp = mysqli_query($conexion, "SELECT * FROM responsables ORDER BY nombre ASC");
+                    $res_resp = mysqli_query($conexion, "SELECT * FROM responsables WHERE activo = 1 ORDER BY nombre ASC");
                     while($rr = mysqli_fetch_assoc($res_resp)) {
                         echo "<option value='{$rr['id']}'>Recibe: {$rr['nombre']}</option>";
                     }
@@ -124,23 +122,21 @@
             </div>
         </form>
     </div>
-    <?php endwhile; ?>
+    <?php endwhile; 
+    endif; ?>
 </div>
 
 <div id="modalAuthGlobal" class="modal-auth">
     <div class="modal-auth-content">
         <h3 style="margin-top:0;">Autorización Rápida</h3>
-        <p style="font-size:0.8rem; color: #666;">Se auto-rellenará por 15 minutos.</p>
-        
         <select id="auth_id_global">
             <option value="">-- Responsable --</option>
             <?php 
-            mysqli_data_seek($res_resp, 0);
-            while($rr = mysqli_fetch_assoc($res_resp)) echo "<option value='{$rr['id']}'>{$rr['nombre']}</option>";
+            $res_resp_m = mysqli_query($conexion, "SELECT * FROM responsables WHERE activo = 1 ORDER BY nombre ASC");
+            while($rr = mysqli_fetch_assoc($res_resp_m)) echo "<option value='{$rr['id']}'>{$rr['nombre']}</option>";
             ?>
         </select>
         <input type="password" id="auth_pass_global" placeholder="Contraseña">
-        
         <button class="btn-auth-fast auth-off" style="width:100%; margin-bottom:10px;" onclick="activarSesionGlobal()">ACTIVAR</button>
         <button type="button" onclick="cerrarModalAuth()" style="background:none; border:none; color: #999; cursor:pointer;">Cancelar</button>
     </div>
@@ -175,7 +171,6 @@
 </div>
 
 <script>
-// --- BUSCADOR ---
 function filtrarTarjetas() {
     const busqueda = document.getElementById('input-buscador').value.toLowerCase();
     const tarjetas = document.querySelectorAll('.card-item');
@@ -185,7 +180,6 @@ function filtrarTarjetas() {
     });
 }
 
-// --- AUTORIZACIÓN RÁPIDA ---
 function controlarModalAuth() {
     if(localStorage.getItem('sesion_encurso')) {
         localStorage.removeItem('sesion_encurso');
@@ -204,7 +198,6 @@ function activarSesionGlobal() {
     const id = document.getElementById('auth_id_global').value;
     const pass = document.getElementById('auth_pass_global').value;
     if(!id || !pass) return alert("Completa los datos");
-
     const data = { id: id, pass: pass, exp: new Date().getTime() + (15 * 60 * 1000) };
     localStorage.setItem('sesion_encurso', JSON.stringify(data));
     alert("✅ Autorización activa por 15 min.");
@@ -219,26 +212,31 @@ function aplicarAutoRelleno() {
             localStorage.removeItem('sesion_encurso');
             return;
         }
-        document.getElementById('btn-sesion-global').innerHTML = "🔴 DESACTIVAR AUTORIZACIÓN";
-        document.getElementById('btn-sesion-global').className = "btn-auth-fast auth-on";
-        
+        const btn = document.getElementById('btn-sesion-global');
+        if(btn) {
+            btn.innerHTML = "🔴 DESACTIVAR AUTORIZACIÓN";
+            btn.className = "btn-auth-fast auth-on";
+        }
         document.querySelectorAll('.form-finalizar').forEach(f => {
-            f.querySelector('.select-resp').value = sesion.id;
-            f.querySelector('.input-pass').value = sesion.pass;
+            const s = f.querySelector('.select-resp');
+            const p = f.querySelector('.input-pass');
+            if(s) s.value = sesion.id;
+            if(p) p.value = sesion.pass;
         });
     }
 }
 
-// --- TUS FUNCIONES ORIGINALES ---
 function abrirModalMateriales(id) {
     document.getElementById('modalMateriales').style.display = 'flex';
     document.getElementById('modal_reporte_id').value = id;
 }
+
 function cerrarModal() {
     document.getElementById('modalMateriales').style.display = 'none';
     document.getElementById('cuerpo-modal-mats').innerHTML = '';
     document.getElementById('inputs-escondidos').innerHTML = '';
 }
+
 function agregarAFilaModal() {
     const input = document.getElementById('in-mat-modal');
     const cant = document.getElementById('in-cant-modal');
@@ -252,10 +250,12 @@ function agregarAFilaModal() {
     document.getElementById('inputs-escondidos').insertAdjacentHTML('beforeend', htmlHidden);
     input.value = '';
 }
+
 function quitarMaterialModal(id) {
     document.getElementById('row-' + id).remove();
     document.getElementById('hid-' + id).remove();
 }
 
-window.onload = aplicarAutoRelleno;
+// Importante: Ejecutar siempre para que no se bloquee el script
+aplicarAutoRelleno();
 </script>

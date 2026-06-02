@@ -28,7 +28,7 @@
         <div class="form-row">
             <div class="input-group">
                 <label>Estudiante (Buscar por nombre o cuenta)</label>
-                <input list="lista-estudiantes" name="estudiante_display" id="input-estudiante" placeholder="Escriba para buscar..." required oninput="vincularEstudiante()">
+                <input list="lista-estudiantes" name="estudiante_display" id="input-estudiante" placeholder="Escriba para buscar..." required oninput="vincularEstudiante()" autocomplete="off">
                 <input type="hidden" name="estudiante_id" id="estudiante_id_hidden" required>
             </div>
             <div class="input-group">
@@ -58,7 +58,7 @@
         <div class="section-title">🔧 Lista de Materiales</div>
         <div class="material-box">
             <div style="display:flex; gap:10px;">
-                <input list="lista-materiales" id="s-mat" style="flex:2;" placeholder="Buscar herramienta en inventario...">
+                <input list="lista-materiales" id="s-mat" style="flex:2;" placeholder="Buscar herramienta en inventario..." autocomplete="off">
                 <input type="number" id="c-mat" value="1" min="1" style="width:80px;">
                 <button type="button" class="btn btn-blue" onclick="addM_Mejorado()">+ Agregar</button>
             </div>
@@ -83,7 +83,8 @@
                 <select name="responsable_salida_id" id="responsable_id" required>
                     <option value="">-- Seleccionar Encargado --</option>
                     <?php 
-                    $res_r = mysqli_query($conexion, "SELECT * FROM responsables ORDER BY nombre ASC");
+                    // Ya filtrado por activos
+                    $res_r = mysqli_query($conexion, "SELECT * FROM responsables WHERE activo = 1 ORDER BY nombre ASC");
                     while($fr = mysqli_fetch_assoc($res_r)) echo "<option value='{$fr['id']}'>{$fr['nombre']}</option>";
                     ?>
                 </select>
@@ -107,6 +108,7 @@
 
 <datalist id="lista-estudiantes">
     <?php 
+    // Los alumnos borrados ya no existen en esta tabla, por lo que no aparecerán aquí
     $res = mysqli_query($conexion, "SELECT * FROM estudiantes ORDER BY nombre ASC");
     while($f = mysqli_fetch_assoc($res)) echo "<option data-id='{$f['id']}' value='{$f['numero_cuenta']} - {$f['nombre']}'>";
     ?>
@@ -145,7 +147,6 @@ function addM_Mejorado() {
     const nombreMaterial = input.value;
     const cantidadNueva = parseInt(canInput.value);
 
-    // Buscar si ya existe el ID en los materiales agregados
     const inputsExistentes = document.querySelectorAll('input[name="m_ids[]"]');
     let filaEncontrada = null;
 
@@ -156,14 +157,11 @@ function addM_Mejorado() {
     });
 
     if(filaEncontrada) {
-        // Si existe, sumamos cantidades en la fila que ya estaba
         const inputCant = filaEncontrada.querySelector('input[name="m_cants[]"]');
         const nuevaSuma = parseInt(inputCant.value) + cantidadNueva;
         inputCant.value = nuevaSuma;
-        // Actualizamos el texto visible (primer nodo de la segunda celda)
         filaEncontrada.cells[1].childNodes[0].nodeValue = nuevaSuma + " ";
     } else {
-        // Si es nuevo, creamos la fila con tu formato original
         const html = `<tr>
             <td>${nombreMaterial}<input type="hidden" name="m_ids[]" value="${materialId}"></td>
             <td>${cantidadNueva} <input type="hidden" name="m_cants[]" value="${cantidadNueva}"></td>
@@ -232,7 +230,7 @@ function validarEnvio() {
     const profesor = document.getElementById('input-profesor').value.trim();
 
     verificarSesion();
-    if(!estudianteId) { alert("⚠️ Selecciona un estudiante."); return false; }
+    if(!estudianteId) { alert("⚠️ Selecciona un estudiante válido de la lista."); return false; }
     if(practica !== "" && profesor === "") {
         alert("⚠️ Si hay práctica, el nombre del Profesor es obligatorio.");
         document.getElementById('input-profesor').focus();
