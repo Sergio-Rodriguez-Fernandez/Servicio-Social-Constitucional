@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 01-06-2026 a las 17:26:39
+-- Tiempo de generación: 02-06-2026 a las 02:08:40
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -42,8 +42,7 @@ CREATE TABLE `estudiantes` (
 INSERT INTO `estudiantes` (`id`, `nombre`, `numero_cuenta`, `grado`, `grupo`) VALUES
 (2, 'Eduardo Rincon', '20215489', '3', 'A'),
 (3, 'Sergio Emmanuel Rodríguez Fernández ', '20206581', '6', 'B'),
-(4, 'Pepe jose', '20225588', '1', 'A'),
-(6, 'Hector Manuel Rodriguez Vargas', '20216123', '4', 'J');
+(4, 'Pepe jose', '20225588', '1', 'A');
 
 -- --------------------------------------------------------
 
@@ -111,7 +110,7 @@ INSERT INTO `profesores` (`id`, `nombre`, `contrasena`) VALUES
 
 CREATE TABLE `reportes` (
   `id` int(11) NOT NULL,
-  `estudiante_id` int(11) NOT NULL,
+  `estudiante_id` int(11) DEFAULT NULL,
   `responsable_salida_id` int(11) DEFAULT NULL,
   `profesor_recibe_id` int(11) DEFAULT NULL,
   `responsable_recibe_id` int(11) DEFAULT NULL,
@@ -121,36 +120,36 @@ CREATE TABLE `reportes` (
   `nombre_profesor_opcional` varchar(150) DEFAULT NULL,
   `hora_inicio` datetime DEFAULT current_timestamp(),
   `hora_termino` datetime DEFAULT NULL,
-  `observaciones` text DEFAULT NULL
+  `observaciones` text DEFAULT NULL,
+  `nombre_alumno_respaldo` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `reportes`
 --
 
-INSERT INTO `reportes` (`id`, `estudiante_id`, `responsable_salida_id`, `profesor_recibe_id`, `responsable_recibe_id`, `maquina`, `mesa`, `practica`, `nombre_profesor_opcional`, `hora_inicio`, `hora_termino`, `observaciones`) VALUES
-(4, 2, NULL, NULL, 1, '', '', 'Práctica General', NULL, '2026-03-16 16:23:07', '2026-03-16 17:01:17', ''),
-(5, 2, 1, NULL, 1, NULL, NULL, '', NULL, '2026-03-16 16:39:03', '2026-03-16 16:40:48', NULL),
-(6, 2, 1, NULL, 1, NULL, NULL, 'prueba', NULL, '2026-03-16 17:00:55', '2026-03-16 17:01:25', NULL),
-(7, 2, 1, NULL, 1, '', '', '', NULL, '2026-03-16 17:37:55', '2026-03-16 17:38:34', 'me muy descuidado en el laboratorio'),
-(8, 2, 1, NULL, 1, '', '', '', NULL, '2026-03-16 17:47:08', '2026-03-16 17:59:15', 'ninguna'),
-(9, 2, 1, NULL, 1, '', '', '', NULL, '2026-03-16 17:55:34', '2026-03-16 17:56:04', ''),
-(10, 2, 1, NULL, 1, '', '', '', NULL, '2026-03-17 08:19:14', '2026-03-17 08:20:46', ''),
-(11, 2, 1, NULL, 1, '', '', '', '', '2026-03-17 09:24:07', '2026-03-18 03:09:37', ''),
-(12, 2, 1, NULL, 1, '', '', '', '', '2026-03-17 18:08:12', '2026-03-17 18:52:29', ''),
-(13, 2, 1, NULL, 1, 'Tormo A', '2', 'prueba de fuego', 'Armando Farias', '2026-03-17 19:55:47', '2026-03-18 03:08:19', 'me cayo bien'),
-(14, 2, 1, NULL, 1, 'Taladro', '', 'retirada', 'Josefina', '2026-03-17 20:15:03', '2026-03-17 20:18:54', ''),
-(15, 2, 1, NULL, 1, 'Tormo A', '5', 'noche', '', '2026-03-17 21:41:16', '2026-03-17 21:42:19', ''),
-(16, 2, 1, NULL, 1, '', '', '', '', '2026-03-17 22:18:30', '2026-03-17 22:25:24', ''),
-(17, 3, 1, NULL, 1, '', '', 'sgdsdv', 'tyery', '2026-03-20 10:57:08', '2026-03-20 10:58:40', ''),
-(18, 4, 1, NULL, 1, '', '', 'soldar', 'M', '2026-03-20 11:00:51', '2026-03-20 11:01:28', 'dañó martillo'),
-(19, 4, 1, NULL, NULL, '', '', 'ertetreryr', 'dfkbmnldfkhg', '2026-03-20 11:03:23', NULL, NULL),
-(20, 4, 1, NULL, 1, '', '', 'dsrgdsrg', 'srgsr', '2026-03-20 11:13:54', '2026-03-20 11:15:06', ''),
-(21, 4, 1, NULL, 1, 'Tormo A', '5', 'no se', 'Armando Farias', '2026-03-21 22:42:17', '2026-03-21 22:44:29', ''),
-(22, 2, 1, NULL, 1, 'Tormo A', '2', 'dios funciona', 'Armando Farias', '2026-04-20 11:25:05', '2026-04-20 11:25:29', ''),
-(23, 4, 1, NULL, NULL, '', '', '', 'Josefina', '2026-04-22 12:45:05', NULL, NULL),
-(24, 4, 1, NULL, NULL, 'Tormo A', '2', '', '', '2026-05-27 14:49:27', NULL, NULL),
-(26, 4, 1, NULL, NULL, '', '', '', '', '2026-05-27 14:57:18', NULL, NULL);
+INSERT INTO `reportes` (`id`, `estudiante_id`, `responsable_salida_id`, `profesor_recibe_id`, `responsable_recibe_id`, `maquina`, `mesa`, `practica`, `nombre_profesor_opcional`, `hora_inicio`, `hora_termino`, `observaciones`, `nombre_alumno_respaldo`) VALUES
+(4, 2, NULL, NULL, 1, '', '', 'Práctica General', NULL, '2026-03-16 16:23:07', '2026-03-16 17:01:17', '', NULL),
+(5, 2, 1, NULL, 1, NULL, NULL, '', NULL, '2026-03-16 16:39:03', '2026-03-16 16:40:48', NULL, NULL),
+(6, 2, 1, NULL, 1, NULL, NULL, 'prueba', NULL, '2026-03-16 17:00:55', '2026-03-16 17:01:25', NULL, NULL),
+(7, 2, 1, NULL, 1, '', '', '', NULL, '2026-03-16 17:37:55', '2026-03-16 17:38:34', 'me muy descuidado en el laboratorio', NULL),
+(8, 2, 1, NULL, 1, '', '', '', NULL, '2026-03-16 17:47:08', '2026-03-16 17:59:15', 'ninguna', NULL),
+(9, 2, 1, NULL, 1, '', '', '', NULL, '2026-03-16 17:55:34', '2026-03-16 17:56:04', '', NULL),
+(10, 2, 1, NULL, 1, '', '', '', NULL, '2026-03-17 08:19:14', '2026-03-17 08:20:46', '', NULL),
+(11, 2, 1, NULL, 1, '', '', '', '', '2026-03-17 09:24:07', '2026-03-18 03:09:37', '', NULL),
+(12, 2, 1, NULL, 1, '', '', '', '', '2026-03-17 18:08:12', '2026-03-17 18:52:29', '', NULL),
+(13, 2, 1, NULL, 1, 'Tormo A', '2', 'prueba de fuego', 'Armando Farias', '2026-03-17 19:55:47', '2026-03-18 03:08:19', 'me cayo bien', NULL),
+(14, 2, 1, NULL, 1, 'Taladro', '', 'retirada', 'Josefina', '2026-03-17 20:15:03', '2026-03-17 20:18:54', '', NULL),
+(15, 2, 1, NULL, 1, 'Tormo A', '5', 'noche', '', '2026-03-17 21:41:16', '2026-03-17 21:42:19', '', NULL),
+(16, 2, 1, NULL, 1, '', '', '', '', '2026-03-17 22:18:30', '2026-03-17 22:25:24', '', NULL),
+(17, 3, 1, NULL, 1, '', '', 'sgdsdv', 'tyery', '2026-03-20 10:57:08', '2026-03-20 10:58:40', '', NULL),
+(18, 4, 1, NULL, 1, '', '', 'soldar', 'M', '2026-03-20 11:00:51', '2026-03-20 11:01:28', 'dañó martillo', NULL),
+(20, 4, 1, NULL, 1, '', '', 'dsrgdsrg', 'srgsr', '2026-03-20 11:13:54', '2026-03-20 11:15:06', '', NULL),
+(21, 4, 1, NULL, 1, 'Tormo A', '5', 'no se', 'Armando Farias', '2026-03-21 22:42:17', '2026-03-21 22:44:29', '', NULL),
+(22, 2, 1, NULL, 1, 'Tormo A', '2', 'dios funciona', 'Armando Farias', '2026-04-20 11:25:05', '2026-04-20 11:25:29', '', NULL),
+(27, 3, NULL, NULL, NULL, '', '', '', '', '2026-06-01 16:53:17', '2026-06-01 16:53:27', '', NULL),
+(28, 4, 10, NULL, 10, '', '', '', '', '2026-06-01 17:17:31', '2026-06-01 17:17:41', '', NULL),
+(29, 6, 1, NULL, 1, '', '', '', '', '2026-06-01 17:24:04', '2026-06-01 17:39:11', '', 'Hector Manuel Rodriguez Vargas');
 
 -- --------------------------------------------------------
 
@@ -206,15 +205,14 @@ INSERT INTO `reporte_materiales` (`id`, `reporte_id`, `material_id`, `cantidad`,
 (19, 17, 2, 1, 1),
 (20, 18, 1, 1, 0),
 (21, 18, 2, 1, 1),
-(22, 19, 1, 5, 0),
 (23, 20, 1, 20, 16),
 (24, 21, 1, 1, 1),
 (25, 21, 5, 1, 1),
 (26, 21, 2, 1, 1),
 (27, 22, 5, 3, 3),
-(28, 23, 1, 2, 0),
-(29, 24, 1, 1, 0),
-(31, 26, 5, 2, 0);
+(32, 27, 1, 1, 1),
+(33, 28, 14, 1, 1),
+(34, 29, 1, 1, 0);
 
 -- --------------------------------------------------------
 
@@ -225,16 +223,18 @@ INSERT INTO `reporte_materiales` (`id`, `reporte_id`, `material_id`, `cantidad`,
 CREATE TABLE `responsables` (
   `id` int(11) NOT NULL,
   `nombre` varchar(255) NOT NULL,
-  `contrasena` varchar(255) NOT NULL
+  `contrasena` varchar(255) NOT NULL,
+  `activo` tinyint(1) DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `responsables`
 --
 
-INSERT INTO `responsables` (`id`, `nombre`, `contrasena`) VALUES
-(1, 'Irvin Rodriguez', '1234'),
-(2, 'Mendoza', '1234');
+INSERT INTO `responsables` (`id`, `nombre`, `contrasena`, `activo`) VALUES
+(1, 'Irvin Rodriguez', '1234', 1),
+(2, 'Mendoza', '1234', 0),
+(10, 'mane', 'mane', 1);
 
 --
 -- Índices para tablas volcadas
@@ -265,8 +265,8 @@ ALTER TABLE `profesores`
 ALTER TABLE `reportes`
   ADD PRIMARY KEY (`id`),
   ADD KEY `fk_estudiante` (`estudiante_id`),
-  ADD KEY `fk_profe_salida` (`responsable_salida_id`),
-  ADD KEY `fk_profe_recibe` (`responsable_recibe_id`);
+  ADD KEY `fk_profe_recibe` (`responsable_recibe_id`),
+  ADD KEY `fk_profe_salida` (`responsable_salida_id`);
 
 --
 -- Indices de la tabla `reporte_detalle_materiales`
@@ -298,7 +298,7 @@ ALTER TABLE `responsables`
 -- AUTO_INCREMENT de la tabla `estudiantes`
 --
 ALTER TABLE `estudiantes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT de la tabla `materiales`
@@ -316,7 +316,7 @@ ALTER TABLE `profesores`
 -- AUTO_INCREMENT de la tabla `reportes`
 --
 ALTER TABLE `reportes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT de la tabla `reporte_detalle_materiales`
@@ -328,13 +328,13 @@ ALTER TABLE `reporte_detalle_materiales`
 -- AUTO_INCREMENT de la tabla `reporte_materiales`
 --
 ALTER TABLE `reporte_materiales`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
 
 --
 -- AUTO_INCREMENT de la tabla `responsables`
 --
 ALTER TABLE `responsables`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- Restricciones para tablas volcadas
@@ -344,9 +344,8 @@ ALTER TABLE `responsables`
 -- Filtros para la tabla `reportes`
 --
 ALTER TABLE `reportes`
-  ADD CONSTRAINT `fk_estudiante` FOREIGN KEY (`estudiante_id`) REFERENCES `estudiantes` (`id`),
-  ADD CONSTRAINT `fk_profe_recibe` FOREIGN KEY (`responsable_recibe_id`) REFERENCES `responsables` (`id`),
-  ADD CONSTRAINT `fk_profe_salida` FOREIGN KEY (`responsable_salida_id`) REFERENCES `responsables` (`id`);
+  ADD CONSTRAINT `fk_profe_recibe` FOREIGN KEY (`responsable_recibe_id`) REFERENCES `responsables` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_profe_salida` FOREIGN KEY (`responsable_salida_id`) REFERENCES `responsables` (`id`) ON DELETE SET NULL;
 
 --
 -- Filtros para la tabla `reporte_detalle_materiales`
