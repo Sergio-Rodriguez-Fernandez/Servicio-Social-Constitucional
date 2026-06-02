@@ -1,48 +1,29 @@
 <?php
-include("conexion.php"); // Al estar en la raíz junto a dashboard, se queda así
+include('conexion.php');
 
-if (isset($_GET['id']) && isset($_GET['tipo'])) {
-    $id = mysqli_real_escape_string($conexion, $_GET['id']);
-    $tipo = $_GET['tipo'];
-    $tabla = "";
-    $redirect = "";
+$id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+$tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
 
-    switch ($tipo) {
-        case 'responsable':
-            $tabla = "responsables";
-            $redirect = "resp";
-            break;
-        case 'estudiante':
-            $tabla = "estudiantes";
-            $redirect = "estu";
-            break;
-        case 'material':
-            $tabla = "materiales";
-            $redirect = "mat";
-            break;
-        case 'profesor':
-            $tabla = "profesores";
-            $redirect = "profe";
-            break;
-        default:
-            die("Error: Tipo no válido");
+if ($id > 0 && $tipo == 'estudiante') {
+    // PASO 1: Buscar el nombre del alumno para el historial antes de que desaparezca
+    $res_nom = mysqli_query($conexion, "SELECT nombre FROM estudiantes WHERE id = $id");
+    
+    if ($row_nom = mysqli_fetch_assoc($res_nom)) {
+        $nombre_fijo = mysqli_real_escape_string($conexion, $row_nom['nombre']);
+
+        // PASO 2: "Congelar" el nombre en el reporte como texto
+        // Así el reporte ya no dependerá de si el alumno existe o no
+        mysqli_query($conexion, "UPDATE reportes SET nombre_alumno_respaldo = '$nombre_fijo' WHERE estudiante_id = $id");
+
+        // PASO 3: Borrar al alumno
+        // Como pusimos la columna como NULL en el paso anterior de SQL, ya NO dará Fatal Error
+        $sql_delete = "DELETE FROM estudiantes WHERE id = $id";
+        
+        if (mysqli_query($conexion, $sql_delete)) {
+            header("Location: dashboard.php?tab=estudiantes&msg=ok");
+        } else {
+            echo "Error al eliminar: " . mysqli_error($conexion);
+        }
     }
-
-    $sql = "DELETE FROM $tabla WHERE id = '$id'";
-
-    if (mysqli_query($conexion, $sql)) {
-        echo "<script>
-                alert('Eliminado con éxito');
-                window.location.href='dashboard.php?tab=$redirect';
-              </script>";
-    } else {
-        echo "<script>
-                alert('Error: No se pudo eliminar. El registro puede estar en uso en un reporte.');
-                window.location.href='dashboard.php?tab=$redirect';
-              </script>";
-    }
-} else {
-    header("Location: dashboard.php");
 }
-mysqli_close($conexion);
 ?>
