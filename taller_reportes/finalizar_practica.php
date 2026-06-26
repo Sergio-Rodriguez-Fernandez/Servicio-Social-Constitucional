@@ -13,7 +13,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $observaciones = mysqli_real_escape_string($conexion, $_POST['observaciones']);
     $devueltos = $_POST['devueltos']; // Array con las cantidades devueltas
 
-    // 2. Verificar la contraseña del responsable
+    // 2. Verificar la contraseña del responsable (Obligatoria para ambos casos)
     $sql_resp = "SELECT contrasena FROM responsables WHERE id = '$responsable_id'";
     $res_resp = mysqli_query($conexion, $sql_resp);
     $info_resp = mysqli_fetch_assoc($res_resp);
@@ -26,58 +26,83 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit;
     }
 
-    // 3. Obtener la hora actual del servidor corregida
-    $hora_termino = date("Y-m-d H:i:s");
-
-    // 4. Iniciar transacción para asegurar que todo se guarde o nada se guarde
+    // Iniciar transacción para asegurar consistencia
     mysqli_begin_transaction($conexion);
 
     try {
-        // Actualizar el reporte principal (Cerrar el vale)
-        $sql_update_reporte = "UPDATE reportes SET 
-                                hora_termino = '$hora_termino', 
-                                responsable_recibe_id = '$responsable_id',
-                                observaciones = '$observaciones' 
-                                WHERE id = '$reporte_id'";
-        mysqli_query($conexion, $sql_update_reporte);
+        // EVALUACIÓN CRUCIAL: Verificamos si viene la bandera del disquete 💾 (solo guardar)
+        if (isset($_POST['solo_guardar']) && $_POST['solo_guardar'] === '1') {
+            
+            // CASO A: GUARDADO PARCIAL
+            // Solo actualizamos las anotaciones y el responsable, dejando la 'hora_termino' intacta (en NULL)
+            $sql_upd = "UPDATE reportes 
+                        SET observaciones = '$observaciones',
+                            responsable_recibe_id = '$responsable_id'
+                        WHERE id = '$reporte_id'";
+            mysqli_query($conexion, $sql_upd);
 
-        // 5. Procesar la devolución de materiales y actualizar inventario
-        foreach ($devueltos as $relacion_id => $cantidad_que_regresa) {
-            $relacion_id = mysqli_real_escape_string($conexion, $relacion_id);
-            $cantidad_que_regresa = (int)$cantidad_que_regresa;
+        } else {
+            
+            // CASO B: FINALIZACIÓN DEFINITIVA (Botón "FINALIZAR")
+            // Cerramos formalmente el vale asentando la hora actual
+            $hora_termino = date("Y-m-d H:i:s");
+            $sql_upd = "UPDATE reportes 
+                        SET hora_termino = '$hora_termino', 
+                            observaciones = '$observaciones',
+                            responsable_recibe_id = '$responsable_id'
+                        WHERE id = '$reporte_id'";
+            mysqli_query($conexion, $sql_upd);
 
-            // Obtener el ID del material y la cantidad original para ajustar el stock
-            $sql_info = "SELECT material_id, cantidad FROM reporte_materiales WHERE id = '$relacion_id'";
-            $res_info = mysqli_query($conexion, $sql_info);
-            $info_mat = mysqli_fetch_assoc($res_info);
+        }
 
-            if ($info_mat) {
-                $material_id = $info_mat['material_id'];
-                
-                // Actualizar la cantidad devuelta en la tabla intermedia
-                $sql_upd_rel = "UPDATE reporte_materiales SET cantidad_devuelta = '$cantidad_que_regresa' 
-                                WHERE id = '$relacion_id'";
-                mysqli_query($conexion, $sql_upd_rel);
+        // 3. Actualizar cantidades devueltas en la tabla intermedia (Aplica para ambos casos)
+        if (isset($devueltos) && is_array($devueltos)) {
+            foreach ($devueltos as $relacion_id => $cantidad_que_regresa) {
+                $relacion_id = mysqli_real_escape_string($conexion, $relacion_id);
+                $cantidad_que_regresa = (int)$cantidad_que_regresa;
 
-                
+                // Validamos la existencia de la relación antes de modificar
+                $sql_info = "SELECT material_id, cantidad FROM reporte_materiales WHERE id = '$relacion_id'";
+                $res_info = mysqli_query($conexion, $sql_info);
+                $info_mat = mysqli_fetch_assoc($res_info);
+
+                if ($info_mat) {
+                    // Actualizar el valor devuelto actual por el alumno
+                    $sql_upd_rel = "UPDATE reporte_materiales 
+                                    SET cantidad_devuelta = '$cantidad_que_regresa' 
+                                    WHERE id = '$relacion_id'";
+                    mysqli_query($conexion, $sql_upd_rel);
+                }
             }
         }
 
-        // Si todo salió bien, confirmar cambios
+        // Si todo salió bien, confirmar los cambios de forma definitiva en la Base de Datos
         mysqli_commit($conexion);
-        echo "<script>
-                alert('Práctica finalizada con éxito.');
-                window.location.href='dashboard.php';
-              </script>";
+
+        // 4. Redirección inteligente según la acción realizada
+        if (isset($_POST['solo_guardar']) && $_POST['solo_guardar'] === '1') {
+            // Si el sistema maneja pestañas por parámetro URL (ej: dashboard.php?tab=en_curso), cámbialo aquí.
+            // Si no, recargar usando 'window.history.back()' o volviendo a llamar a la página origen mantiene la pestaña activa.
+            echo "<script>
+                    alert('Cambios parciales guardados correctamente.');
+                    if(window.opener) {
+                        window.opener.location.reload();
+                        window.close();
+                    } else {
+                        window.location.href = document.referrer || 'dashboard.php';
+                    }
+                  </script>";
+        } else {
+            echo "<script>
+                    alert('Práctica finalizada con éxito.');
+                    window.location.href='dashboard.php';
+                  </script>";
+        }
 
     } catch (Exception $e) {
-        // Si hay error, deshacer cambios
+        // En caso de que ocurra algún fallo imprevisto, deshacer cambios en lote
         mysqli_rollback($conexion);
-        echo "Error al finalizar: " . $e->getMessage();
+        echo "Error al procesar la solicitud: " . $e->getMessage();
     }
-} else {
-    header("Location: dashboard.php");
 }
-
-mysqli_close($conexion);
 ?>
