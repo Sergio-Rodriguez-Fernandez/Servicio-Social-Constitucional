@@ -1,5 +1,5 @@
 <?php 
-// tab_en_curso.php - Corregido para evitar bloqueo cuando está vacío
+// tab_en_curso.php - Versión Completa con corrección de Grid y Deprecated de PHP
 ?>
 <style>
     .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
@@ -13,7 +13,8 @@
     .modal-auth-content { background: white; padding: 25px; border-radius: 10px; width: 320px; text-align: center; }
     .modal-auth-content select, .modal-auth-content input { width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
 
-    .grid-practicas { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; }
+    /* Clase contenedora original para ordenar horizontalmente las tarjetas */
+    .grid-practicas { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; width: 100%; }
 </style>
 
 <div class="header-flex">
@@ -37,7 +38,6 @@
               WHERE r.hora_termino IS NULL ORDER BY r.hora_inicio DESC";
     $res_c = mysqli_query($conexion, $sql_c);
     
-    // Si no hay filas, mostramos el mensaje pero NO cerramos el proceso PHP
     if(mysqli_num_rows($res_c) == 0): ?>
         <div class='card full-width' style="grid-column: 1 / -1;">
             <p style='text-align:center; padding:40px; color: #666;'>No hay préstamos activos en este momento.</p>
@@ -50,8 +50,8 @@
             $txt_profesor = !empty($row['nombre_profesor_opcional']) ? $row['nombre_profesor_opcional'] : 'Sin especificar';
             $search_data = strtolower($row['alumno'] . " " . $row['numero_cuenta']);
     ?>
-    <div class="card card-item" data-search="<?php echo $search_data; ?>" style="border-left: 5px solid #ffc107; margin-bottom: 20px;">
-        <form action="finalizar_practica.php" method="POST" class="form-finalizar">
+    <div class="card card-item" data-search="<?php echo $search_data; ?>" style="border-left: 5px solid #ffc107; display: flex; flex-direction: column;">
+        <form action="finalizar_practica.php" method="POST" class="form-finalizar" id="form-finalizar-<?php echo $r_id; ?>">
             <input type="hidden" name="reporte_id" value="<?php echo $r_id; ?>">
             
             <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start;">
@@ -78,7 +78,8 @@
             <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #eee; margin-bottom: 10px;">
                 <strong style="font-size: 0.85rem; display: block; margin-bottom: 5px;">Materiales (¿Cuántos regresan?)</strong>
                 <?php 
-                $sql_m = "SELECT rm.id, rm.cantidad, m.nombre 
+                // Añadimos rm.cantidad_devuelta para poder leer las cantidades guardadas
+                $sql_m = "SELECT rm.id, rm.cantidad, rm.cantidad_devuelta, m.nombre 
                           FROM reporte_materiales rm 
                           JOIN materiales m ON rm.material_id = m.id 
                           WHERE rm.reporte_id = $r_id";
@@ -87,7 +88,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 0.85rem;">
                         <span><?php echo $m['nombre']; ?> (Llevó: <?php echo $m['cantidad']; ?>)</span>
                         <input type="number" name="devueltos[<?php echo $m['id']; ?>]" 
-                               value="0" 
+                               value="<?php echo !empty($m['cantidad_devuelta']) ? $m['cantidad_devuelta'] : 0; ?>" 
                                min="0" max="<?php echo $m['cantidad']; ?>" 
                                style="width: 50px; padding: 2px; text-align: center;">
                     </div>
@@ -95,7 +96,7 @@
             </div>
 
             <div style="margin-bottom: 10px;">
-                <textarea name="observaciones" rows="2" style="width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 5px; font-size: 0.85rem;" placeholder="Observaciones de entrega..."></textarea>
+                <textarea name="observaciones" rows="2" style="width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 5px; font-size: 0.85rem;" placeholder="Observaciones de entrega..."><?php echo htmlspecialchars((string)$row['observaciones']); ?></textarea>
             </div>
 
             <div style="margin-bottom: 10px;">
@@ -104,7 +105,8 @@
                     <?php 
                     $res_resp = mysqli_query($conexion, "SELECT * FROM responsables WHERE activo = 1 ORDER BY nombre ASC");
                     while($rr = mysqli_fetch_assoc($res_resp)) {
-                        echo "<option value='{$rr['id']}'>Recibe: {$rr['nombre']}</option>";
+                        $selected = ($row['responsable_recibe_id'] == $rr['id']) ? 'selected' : '';
+                        echo "<option value='{$rr['id']}' $selected>Recibe: {$rr['nombre']}</option>";
                     }
                     ?>
                 </select>
@@ -114,6 +116,7 @@
             
             <div style="display: flex; gap: 8px;">
                 <button type="submit" class="btn btn-primary" style="flex: 2; font-weight: bold;">FINALIZAR</button>
+                <button type="button" class="btn btn-blue" style="flex: 1; font-weight: bold; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;" onclick="guardarEntregaParcial(<?php echo $r_id; ?>)">💾</button>
                 <button type="button" class="btn btn-blue" style="flex: 1; font-weight: bold; font-size: 1.2rem;" 
                         onclick="abrirModalMateriales(<?php echo $r_id; ?>)">+</button>
                 <a href="eliminar_practica.php?id=<?php echo $r_id; ?>" class="btn btn-red" 
@@ -124,9 +127,7 @@
     </div>
     <?php endwhile; 
     endif; ?>
-</div>
-
-<div id="modalAuthGlobal" class="modal-auth">
+</div> <div id="modalAuthGlobal" class="modal-auth">
     <div class="modal-auth-content">
         <h3 style="margin-top:0;">Autorización Rápida</h3>
         <select id="auth_id_global">
@@ -256,6 +257,46 @@ function quitarMaterialModal(id) {
     document.getElementById('hid-' + id).remove();
 }
 
-// Importante: Ejecutar siempre para que no se bloquee el script
+function guardarEntregaParcial(idTarjeta) {
+    const formOriginal = document.getElementById('form-finalizar-' + idTarjeta);
+    if (!formOriginal) return;
+
+    const selectResp = formOriginal.querySelector('.select-resp');
+    const inputPass = formOriginal.querySelector('.input-pass');
+
+    if (!selectResp || !selectResp.value || !inputPass || !inputPass.value) {
+        alert("⚠️ Para realizar un guardado parcial, es obligatorio seleccionar el responsable e ingresar su contraseña.");
+        if (selectResp && !selectResp.value) selectResp.focus();
+        else if (inputPass) inputPass.focus();
+        return;
+    }
+
+    const formFantasma = document.createElement('form');
+    formFantasma.action = 'finalizar_practica.php';
+    formFantasma.method = 'POST';
+    formFantasma.style.display = 'none';
+
+    const inputsParaClonar = formOriginal.querySelectorAll(
+        'input[name="reporte_id"], textarea[name="observaciones"], input[name^="devueltos["], .select-resp, .input-pass'
+    );
+    
+    inputsParaClonar.forEach(input => {
+        const clon = document.createElement('input');
+        clon.type = 'hidden';
+        clon.name = input.name;
+        clon.value = input.value;
+        formFantasma.appendChild(clon);
+    });
+
+    const inputSoloGuardar = document.createElement('input');
+    inputSoloGuardar.type = 'hidden';
+    inputSoloGuardar.name = 'solo_guardar';
+    inputSoloGuardar.value = '1';
+    formFantasma.appendChild(inputSoloGuardar);
+
+    document.body.appendChild(formFantasma);
+    formFantasma.submit();
+}
+
 aplicarAutoRelleno();
 </script>
